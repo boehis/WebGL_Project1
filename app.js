@@ -22,19 +22,48 @@ var FSHADER_SOURCE =
   '}\n';
 
 
+  // Global Variables
+// =========================
 
-// Global Variable -- Rotation angle rate (degrees/second)
-var ANGLE_STEP = 45.0;
+//------------For WebGL-----------------------------------------------
+var gl;           // webGL Rendering Context. Set in main(), used everywhere.
+var g_canvas = document.getElementById('webgl');     
+                  // our HTML-5 canvas object that uses 'gl' for drawing.
+                  
+// ----------For tetrahedron & its matrix---------------------------------
+var g_vertsMax = 0;                 // number of vertices held in the VBO 
+                                    // (global: replaces local 'n' variable)
+var g_modelMatrix = new Matrix4();  // Construct 4x4 matrix; contents get sent
+                                    // to the GPU/Shaders as a 'uniform' var.
+var g_modelMatLoc;                  // that uniform's location in the GPU
+
+//------------For Animation---------------------------------------------
+var g_isRun = true;                 // run/stop for animation; used in tick().
+var g_lastMS = Date.now();    			// Timestamp for most-recently-drawn image; 
+                                    // in milliseconds; used by 'animate()' fcn 
+                                    // (now called 'timerAll()' ) to find time
+                                    // elapsed since last on-screen image.
+var g_angle01 = 0;                  // initial rotation angle
+var g_angle01Rate = 45.0;           // rotation speed, in degrees/second 
+
+//------------For mouse click-and-drag: -------------------------------
+var g_isDrag=false;		// mouse-drag: true when user holds down mouse button
+var g_xMclik=0.0;			// last mouse button-down position (in CVV coords)
+var g_yMclik=0.0;   
+var g_xMdragTot=0.0;	// total (accumulated) mouse-drag amounts (in CVV coords).
+var g_yMdragTot=0.0; 
+var g_digits=5;			// DIAGNOSTICS: # of digits to print in console.log (
+									//    console.log('xVal:', xVal.toFixed(g_digits)); // print 5 digits
+
 
 function main() {
 //==============================================================================
   // Retrieve <canvas> element
-  var canvas = document.getElementById('webgl');
-  canvas.width = Math.min(window.innerWidth,window.innerHeight)
-  canvas.height = Math.min(window.innerWidth,window.innerHeight)
+  g_canvas.width = Math.min(window.innerWidth,window.innerHeight)
+  g_canvas.height = Math.min(window.innerWidth,window.innerHeight)
 
   // Get the rendering context for WebGL
-  var gl = getWebGLContext(canvas);
+  var gl = getWebGLContext(g_canvas);
   if (!gl) {
     console.log('Failed to get the rendering context for WebGL');
     return;
@@ -54,6 +83,11 @@ function main() {
     console.log('Failed to set the positions of the vertices');
     return;
   }
+
+  //MOUSE:
+  window.addEventListener("mousedown", myMouseDown); 
+  window.addEventListener("mousemove", myMouseMove); 
+	window.addEventListener("mouseup", myMouseUp);	
 
   // Specify the color for clearing <canvas>
   gl.clearColor(0, 0, 0, 0);
@@ -80,14 +114,12 @@ function main() {
 
   // Current rotation angle
   var currentAngle = 0.0;
-  // Model matrix
-  var modelMatrix = new Matrix4();
 
   // Start drawing
   var tick = function() {
     currentAngle = animate(currentAngle);  // Update the rotation angle
-    draw(gl, n, currentAngle, modelMatrix, u_ModelMatrix);   // Draw the triangle
-    requestAnimationFrame(tick, canvas);   // Request that the browser ?calls tick
+    draw(gl, n, currentAngle, u_ModelMatrix);   // Draw the triangle
+    requestAnimationFrame(tick, g_canvas);   // Request that the browser ?calls tick
   };
   tick();
 }
@@ -218,7 +250,7 @@ function initVertexBuffers(gl) {
   return n;
 }
 
-function draw(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
+function draw(gl, n, currentAngle, u_ModelMatrix) {
 //==============================================================================
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -229,23 +261,28 @@ function draw(gl, n, currentAngle, modelMatrix, u_ModelMatrix) {
   //modelMatrix.setTranslate(-0.4,-0.4, 0.0);  // 'set' means DISCARD old matrix,
   						// (drawing axes centered in CVV), and then make new
   						// drawing axes moved to the lower-left corner of CVV. 
-  
-  modelMatrix.setRotate(currentAngle,0.4,1,1)
+  g_modelMatrix.setRotate(0,0,0)
 
-  modelMatrix.translate(0,1,0)
-  modelMatrix.rotate(90,0,0,1)
-  modelMatrix.rotate(90,0,1,0)
-  modelMatrix.translate(0.0,0.0,-1.0)
+  var dist = Math.sqrt(g_xMdragTot*g_xMdragTot + g_yMdragTot*g_yMdragTot);
+  g_modelMatrix.rotate(dist*120.0, -g_yMdragTot+0.0001, g_xMdragTot+0.0001, 0.0);
+  
+
+//  g_modelMatrix.rotate(currentAngle,0,0,1)
+
+  g_modelMatrix.translate(0,1,0)
+  g_modelMatrix.rotate(90,0,0,1)
+  g_modelMatrix.rotate(90,0,1,0)
+  g_modelMatrix.translate(0.0,0.0,-1.0)
   //modelMatrix.rotate(-90,0,0,1)
 
-  gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+  gl.uniformMatrix4fv(u_ModelMatrix, false, g_modelMatrix.elements);
   gl.drawArrays(gl.TRIANGLES, 0, n);
   
   var angle = 20
   for(i = 0; i < 360; i+= angle){
-    modelMatrix.rotate(angle,0,0,1)
+    g_modelMatrix.rotate(angle,0,0,1)
 
-    gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+    gl.uniformMatrix4fv(u_ModelMatrix, false, g_modelMatrix.elements);
     gl.drawArrays(gl.TRIANGLES, 0, n);
   }
 
@@ -265,20 +302,83 @@ function animate(angle) {
   
   // Update the current rotation angle (adjusted by the elapsed time)
   //  limit the angle to move smoothly between +20 and -85 degrees:
-  if(angle >  360.0 && ANGLE_STEP > 0) ANGLE_STEP = -ANGLE_STEP;
-  if(angle <  0.0 && ANGLE_STEP < 0) ANGLE_STEP = -ANGLE_STEP;
+  if(angle >  360.0 && g_angle01Rate > 0) g_angle01Rate = -g_angle01Rate;
+  if(angle <  0.0 && g_angle01Rate < 0) g_angle01Rate = -g_angle01Rate;
   
-  var newAngle = angle + (ANGLE_STEP * elapsed) / 1000.0;
+  var newAngle = angle + (g_angle01Rate * elapsed) / 1000.0;
   return newAngle %= 360;
 }
 
 function moreCCW() {
 //==============================================================================
 
-  ANGLE_STEP += 10; 
+  g_angle01Rate += 10; 
 }
 
 function lessCCW() {
 //==============================================================================
-  ANGLE_STEP -= 10; 
+  g_angle01Rate -= 10; 
 }
+
+//===================Mouse and Keyboard event-handling Callbacks
+
+function myMouseDown(ev) {
+
+  var rect = ev.target.getBoundingClientRect();	// get canvas corners in pixels
+  var xp = ev.clientX - rect.left;									// x==0 at canvas left edge
+  var yp = g_canvas.height - (ev.clientY - rect.top);	// y==0 at canvas bottom edge
+  
+  var x = (xp - g_canvas.width/2)  / 		// move origin to center of canvas and
+               (g_canvas.width/2);			// normalize canvas to -1 <= x < +1,
+  var y = (yp - g_canvas.height/2) /		//										 -1 <= y < +1.
+               (g_canvas.height/2);
+
+  g_isDrag = true;											// set our mouse-dragging flag
+  g_xMclik = x;													// record where mouse-dragging began
+  g_yMclik = y;
+};
+  
+  
+function myMouseMove(ev) {
+  if(g_isDrag==false) return;				// IGNORE all mouse-moves except 'dragging'
+
+  // Create right-handed 'pixel' coords with origin at WebGL canvas LOWER left;
+  var rect = ev.target.getBoundingClientRect();	// get canvas corners in pixels
+  var xp = ev.clientX - rect.left;									// x==0 at canvas left edge
+  var yp = g_canvas.height - (ev.clientY - rect.top);	// y==0 at canvas bottom edge
+  //  console.log('myMouseMove(pixel coords): xp,yp=\t',xp,',\t',yp);
+  
+  // Convert to Canonical View Volume (CVV) coordinates too:
+  var x = (xp - g_canvas.width/2)  / 		// move origin to center of canvas and
+                (g_canvas.width/2);			// normalize canvas to -1 <= x < +1,
+  var y = (yp - g_canvas.height/2) /		//										 -1 <= y < +1.
+                (g_canvas.height/2);
+  //	console.log('myMouseMove(CVV coords  ):  x, y=\t',x,',\t',y);
+
+  // find how far we dragged the mouse:
+  g_xMdragTot += (x - g_xMclik);					// Accumulate change-in-mouse-position,&
+  g_yMdragTot += (y - g_yMclik);
+
+  g_xMclik = x;													// Make next drag-measurement from here.
+  g_yMclik = y;
+};
+
+function myMouseUp(ev) {
+
+  var rect = ev.target.getBoundingClientRect();	// get canvas corners in pixels
+  var xp = ev.clientX - rect.left;									// x==0 at canvas left edge
+  var yp = g_canvas.height - (ev.clientY - rect.top);	// y==0 at canvas bottom edge
+//  console.log('myMouseUp  (pixel coords): xp,yp=\t',xp,',\t',yp);
+  
+  // Convert to Canonical View Volume (CVV) coordinates too:
+  var x = (xp - g_canvas.width/2)  / 		// move origin to center of canvas and
+                (g_canvas.width/2);			// normalize canvas to -1 <= x < +1,
+  var y = (yp - g_canvas.height/2) /		//										 -1 <= y < +1.
+                (g_canvas.height/2);
+  console.log('myMouseUp  (CVV coords  ):  x, y=\t',x,',\t',y);
+  
+  g_isDrag = false;											// CLEAR our mouse-dragging flag, and
+  // accumulate any final bit of mouse-dragging we did:
+  g_xMdragTot += (x - g_xMclik);
+  g_yMdragTot += (y - g_yMclik);
+};
