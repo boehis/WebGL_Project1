@@ -103,15 +103,6 @@ function main() {
     console.log('Failed to get the storage location of u_ModelMatrix');
     return;
   }
-	// Explain on console:
-	console.log('\ndraw() fcn, line 151: translate1. rotate1. translate2.\n Draw box; Lower arm now complete.\n');
-	console.log('Upper Arm, line 178: translate3. scale1. rotate2. translate4. \n Draw box. Upper Arm now complete.\n');
-	console.log('Pincer: line 199: translate5. PUSHmatrix! rotate3. scale2. \n Draw box. lower, inner jaw now complete.\n');
-	console.log('lower, outer jaw: line 238: translate6. rotate4. translate7. \n Draw box. lower, outer jaw now complete. \n');
-	console.log('upper, inner jaw: line 247: POPmatrix! (return to \'wrist\' coords). rotate5. scale3. translate8. \n Draw box. upper, inner jaw now complete. \n');
-	console.log('upper, outer jaw: line 268: translate9. rotate6. translate10. \n Draw box.  Upper, outer jaw now complete.\n');
-	console.log('Entire Robot Arm now complete!\n\n');
-
   // Current rotation angle
   var currentAngle = 0.0;
 
@@ -175,32 +166,246 @@ function ballMesh(depth, segments) {
 
 function initVertexBuffers(gl) {
 //==============================================================================
-  var colorShape = ballMesh(0,100)
-  console.log(colorShape)
+//Car points
+var x1 = -0.95, y1 = 0
+var x2 = -1.0, y2 = 0.15
+var x3 = -0.9, y3 = 0.2
+var x4 = -0.94, y4 = 0.35
+var x5 = -0.78, y5 = 0.41
+var x6 = -0.3, y6 = 0.4
+var x7 = 0.98, y7 = 0.4
+var x8 = 1.0, y8 = 0.2
+var x9 = 0.9, y9 = 0.1
+var x10 = 0.7, y10 = 0
+
+
+var x11 = 0, y11 = 0.4
+var x12 = 0.55, y12 = 0.4
+var x13 = 0.15, y13 = 0.58
+var x14 = -0.11, y14 = 0.6
+
+
+var carsideR = 0, carsideG = 0, carsideB = 0.8
+var carhullR = 0, carhullG = 0, carhullB = 0.5
+
+var carroofR = 0, carroofG = 0, carroofB = 0.5
+
+var colorShape =  new Float32Array ([
+  //CAR BODY -- inspiration from https://www.3dcadbrowser.com/3d-model/ford-mustang-1966, but i only looked at the 3d view, not at any mesh / node list
+  //=========================
+
+  //FRONT SIDE
+  x2, y2, 0, 1.0,     carsideR, carsideG, carsideB,
+  x3, y3, 0, 1.0,     carsideR, carsideG, carsideB,
+  x1, y1, 0, 1.0,     carsideR, carsideG, carsideB,
+
+  x4, y4, 0, 1.0,     carsideR, carsideG, carsideB,
+  x5, y5, 0, 1.0,     carsideR, carsideG, carsideB,
+  x3, y3, 0, 1.0,     carsideR, carsideG, carsideB,
+
+  x1, y1, 0, 1.0,     carsideR, carsideG, carsideB,
+  x6, y6, 0, 1.0,     carsideR, carsideG, carsideB,
+  x3, y3, 0, 1.0,     carsideR, carsideG, carsideB,
+
+  x5, y5, 0, 1.0,     carsideR, carsideG, carsideB,
+  x6, y6, 0, 1.0,     carsideR, carsideG, carsideB,
+  x3, y3, 0, 1.0,     carsideR, carsideG, carsideB,
   
-  /* new Float32Array ([
-    1.0, 1.0, 1.0, 1.0,  1.0, 1.0, 1.0,
-    1.0, -1.0, 1.0, 1.0,  1.0, 1.0, 1.0,
-    -1.0, -1.0, 1.0, 1.0,  1.0, 1.0, 1.0,
+  x1, y1, 0, 1.0,     carsideR, carsideG, carsideB,
+  x6, y6, 0, 1.0,     carsideR, carsideG, carsideB,
+  x7, y7, 0, 1.0,     carsideR, carsideG, carsideB,
 
-    -1.0, -1.0, 1.0, 1.0,  0.0, 0.0, 1.0,
-    -1.0, 1.0, 1.0, 1.0,  0.0, 0.0, 1.0,
-    1.0, 1.0, 1.0, 1.0,  0.0, 0.0, 1.0,
-    
+  x1, y1, 0, 1.0,     carsideR, carsideG, carsideB,
+  x10, y10, 0, 1.0,   carsideR, carsideG, carsideB,
+  x7, y7, 0, 1.0,     carsideR, carsideG, carsideB,
 
-    1.0, 1.0, -1.0, 1.0,  1.0, 1.0, 1.0,
-    1.0, -1.0, -1.0, 1.0,  1.0, 1.0, 1.0,
-    -1.0, -1.0, -1.0, 1.0,  1.0, 1.0, 1.0,
+  x10, y10, 0, 1.0,     carsideR, carsideG, carsideB,
+  x9, y9, 0, 1.0,     carsideR, carsideG, carsideB,
+  x7, y7, 0, 1.0,     carsideR, carsideG, carsideB,
 
-    -1.0, -1.0, -1.0, 1.0,  1.0, 0.0, 0.0,
-    -1.0, 1.0, -1.0, 1.0,  1.0, 0.0, 0.0,
-    1.0, 1.0, -1.0, 1.0,  1.0, 0.0, 0.0,
-    
-    
-  ]);
+  x8, y8, 0, 1.0,     carsideR, carsideG, carsideB,
+  x9, y9, 0, 1.0,     carsideR, carsideG, carsideB,
+  x7, y7, 0, 1.0,     carsideR, carsideG, carsideB,
 
-*/
 
+  //FRONT SIDE
+  x2, y2, -1, 1.0,     carsideR, carsideG, carsideB,
+  x3, y3, -1, 1.0,     carsideR, carsideG, carsideB,
+  x1, y1, -1, 1.0,     carsideR, carsideG, carsideB,
+
+  x4, y4, -1, 1.0,     carsideR, carsideG, carsideB,
+  x5, y5, -1, 1.0,     carsideR, carsideG, carsideB,
+  x3, y3, -1, 1.0,     carsideR, carsideG, carsideB,
+
+  x1, y1, -1, 1.0,     carsideR, carsideG, carsideB,
+  x6, y6, -1, 1.0,     carsideR, carsideG, carsideB,
+  x3, y3, -1, 1.0,     carsideR, carsideG, carsideB,
+
+  x5, y5, -1, 1.0,     carsideR, carsideG, carsideB,
+  x6, y6, -1, 1.0,     carsideR, carsideG, carsideB,
+  x3, y3, -1, 1.0,     carsideR, carsideG, carsideB,
+  
+  x1, y1, -1, 1.0,     carsideR, carsideG, carsideB,
+  x6, y6, -1, 1.0,     carsideR, carsideG, carsideB,
+  x7, y7, -1, 1.0,     carsideR, carsideG, carsideB,
+
+  x1, y1, -1, 1.0,     carsideR, carsideG, carsideB,
+  x10, y10, -1, 1.0,   carsideR, carsideG, carsideB,
+  x7, y7, -1, 1.0,     carsideR, carsideG, carsideB,
+
+  x10, y10, -1, 1.0,     carsideR, carsideG, carsideB,
+  x9, y9, -1, 1.0,     carsideR, carsideG, carsideB,
+  x7, y7, -1, 1.0,     carsideR, carsideG, carsideB,
+
+  x8, y8, -1, 1.0,     carsideR, carsideG, carsideB,
+  x9, y9, -1, 1.0,     carsideR, carsideG, carsideB,
+  x7, y7, -1, 1.0,     carsideR, carsideG, carsideB,
+  
+
+  //CAR BELOW
+  x1, y1, 0, 1.0,     carhullR, carhullG, carhullB,
+  x1, y1, -1, 1.0,     carhullR, carhullG, carhullB,
+  x10, y10, 0, 1.0,     carhullR, carhullG, carhullB,
+  x10, y10, 0, 1.0,     carhullR, carhullG, carhullB,
+  x10, y10, -1, 1.0,     carhullR, carhullG, carhullB,
+  x1, y1, -1, 1.0,     carhullR, carhullG, carhullB,
+
+  //CAR REAR
+  x10, y10, 0, 1.0,     carhullR, carhullG, carhullB,
+  x9, y9, 0, 1.0,     carhullR, carhullG, carhullB,
+  x10, y10, -1, 1.0,     carhullR, carhullG, carhullB,
+  x10, y10, -1, 1.0,     carhullR, carhullG, carhullB,
+  x9, y9, -1, 1.0,     carhullR, carhullG, carhullB,
+  x9, y9, 0, 1.0,     carhullR, carhullG, carhullB,
+
+  x8, y8, 0, 1.0,     carhullR, carhullG, carhullB,
+  x9, y9, 0, 1.0,     carhullR, carhullG, carhullB,
+  x8, y8, -1, 1.0,     carhullR, carhullG, carhullB,
+  x8, y8, -1, 1.0,     carhullR, carhullG, carhullB,
+  x9, y9, -1, 1.0,     carhullR, carhullG, carhullB,
+  x9, y9, 0, 1.0,     carhullR, carhullG, carhullB,
+
+  x8, y8, 0, 1.0,     1.0, 0, 0,
+  x7, y7, 0, 1.0,     1.0, 0, 0,
+  x8, y8, -1, 1.0,      1.0, 0, 0,
+  x8, y8, -1, 1.0,      1.0, 0, 0,
+  x7, y7, -1, 1.0,      1.0, 0, 0,
+  x7, y7, 0, 1.0,     1.0, 0, 0,
+
+  x8, y8, 0, 1.0,     1.0, 0.5, 0,
+  x8, y8+0.1, 0, 1.0,     1.0, 0.5, 0,
+  x8, y8, 0-0.1, 1.0,     1.0, 0.5, 0,
+
+  x8, y8, -1, 1.0,     1.0, 0.5, 0,
+  x8, y8+0.1, -1, 1.0,     1.0, 0.5, 0,
+  x8, y8, -1+0.1, 1.0,     1.0, 0.5, 0,
+  
+
+
+  //CAR TOP
+  x7, y7, 0, 1.0,     carhullR, carhullG, carhullB,
+  x6, y6, 0, 1.0,     carhullR, carhullG, carhullB,
+  x7, y7, -1, 1.0,     carhullR, carhullG, carhullB,
+  x7, y7, -1, 1.0,     carhullR, carhullG, carhullB,
+  x6, y6, -1, 1.0,     carhullR, carhullG, carhullB,
+  x6, y6, 0, 1.0,     carhullR, carhullG, carhullB,
+
+  x5, y5, 0, 1.0,     carhullR, carhullG, carhullB,
+  x6, y6, 0, 1.0,     carhullR, carhullG, carhullB,
+  x5, y5, -1, 1.0,     carhullR, carhullG, carhullB,
+  x5, y5, -1, 1.0,     carhullR, carhullG, carhullB,
+  x6, y6, -1, 1.0,     carhullR, carhullG, carhullB,
+  x6, y6, 0, 1.0,     carhullR, carhullG, carhullB,
+
+  //CAR FRONT
+  x5, y5, 0, 1.0,     carhullR, carhullG, carhullB,
+  x4, y4, 0, 1.0,     carhullR, carhullG, carhullB,
+  x5, y5, -1, 1.0,     carhullR, carhullG, carhullB,
+  x5, y5, -1, 1.0,     carhullR, carhullG, carhullB,
+  x4, y4, -1, 1.0,     carhullR, carhullG, carhullB,
+  x4, y4, 0, 1.0,     carhullR, carhullG, carhullB,
+
+  x3, y3, 0, 1.0,     1,1,1,
+  x4, y4, 0, 1.0,     1,1,1,
+  x3, y3, -1, 1.0,     1,1,1,
+  x3, y3, -1, 1.0,     1,1,1,
+  x4, y4, -1, 1.0,     1,1,1,
+  x4, y4, 0, 1.0,     1,1,1,
+
+  x3, y3, 0, 1.0,     carhullR, carhullG, carhullB,
+  x2, y2, 0, 1.0,     carhullR, carhullG, carhullB,
+  x3, y3, -1, 1.0,     carhullR, carhullG, carhullB,
+  x3, y3, -1, 1.0,     carhullR, carhullG, carhullB,
+  x2, y2, -1, 1.0,     carhullR, carhullG, carhullB,
+  x2, y2, 0, 1.0,     carhullR, carhullG, carhullB,
+  
+  x1, y1, 0, 1.0,     carhullR, carhullG, carhullB,
+  x2, y2, 0, 1.0,     carhullR, carhullG, carhullB,
+  x1, y1, -1, 1.0,     carhullR, carhullG, carhullB,
+  x1, y1, -1, 1.0,     carhullR, carhullG, carhullB,
+  x2, y2, -1, 1.0,     carhullR, carhullG, carhullB,
+  x2, y2, 0, 1.0,     carhullR, carhullG, carhullB,
+
+  x3, y3, 0, 1.0,     1.0, 0.5, 0,
+  x4, y3+0.1, 0, 1.0,     1.0, 0.5, 0,
+  x3, y3, 0-0.1, 1.0,     1.0, 0.5, 0,
+
+  x3, y3, -1, 1.0,     1.0, 0.5, 0,
+  x4, y3+0.1, -1, 1.0,     1.0, 0.5, 0,
+  x3, y3, -1+0.1, 1.0,     1.0, 0.5, 0,
+  
+
+  //ROOF FRONT SIDE
+  x6, y6, 0, 1.0,       0.8,0.0,0.8,
+  x11, y11, 0, 1.0,     0.6,0.4,0.8,
+  x14, y14, 0, 1.0,     0.8,0.8,0.2,
+
+  x13, y13, 0, 1.0,     0.8,0.8,0.8,
+  x11, y11, 0, 1.0,     0.6,0.4,0.8,
+  x14, y14, 0, 1.0,     0.8,0.8,0.2,
+
+  x13, y13, 0, 1.0,     0.8,0.8,0.8,
+  x11, y11, 0, 1.0,     0.6,0.4,0.8,
+  x12, y12, 0, 1.0,     0.8,0.8,0.8,
+
+  //ROOF BACK SIDE
+  x6, y6, -1, 1.0,       0.4,0.2,0.8,
+  x11, y11, -1, 1.0,     0.6,0.4,0.8,
+  x14, y14, -1, 1.0,     0.8,0.8,0.2,
+
+  x13, y13, -1, 1.0,     0.8,0.8,0.8,
+  x11, y11, -1, 1.0,     0.6,0.4,0.8,
+  x14, y14, -1, 1.0,     0.8,0.8,0.2,
+
+  x13, y13, -1, 1.0,     0.8,0.8,0.8,
+  x11, y11, -1, 1.0,     0.6,0.4,0.8,
+  x12, y12, -1, 1.0,     0.8,0.8,0.8,
+
+  //ROOF TOP
+  x6, y6, 0, 1.0,     0.8,0.0,0.8,
+  x6, y6, -1, 1.0,     0.4,0.2,0.8,
+  x14, y14, 0, 1.0,     0.8,0.8,0.2,
+  x14, y14, -1, 1.0,     0.8,0.8,0.2,
+  x14, y14, 0, 1.0,     0.8,0.8,0.2,
+  x6, y6, -1, 1.0,     0.4,0.2,0.8,
+
+  x13, y13, 0, 1.0,     carsideR, carsideG, carsideB,
+  x13, y13, -1, 1.0,     carsideR, carsideG, carsideB,
+  x14, y14, 0, 1.0,     carsideR, carsideG, carsideB,
+  x14, y14, -1, 1.0,     carsideR, carsideG, carsideB,
+  x14, y14, 0, 1.0,     carsideR, carsideG, carsideB,
+  x13, y13, -1, 1.0,     carsideR, carsideG, carsideB,
+
+  x13, y13, 0, 1.0,     carsideR, carsideG, carsideB,
+  x13, y13, -1, 1.0,     carsideR, carsideG, carsideB,
+  x12, y12, 0, 1.0,     carsideR, carsideG, carsideB,
+  x12, y12, -1, 1.0,     carsideR, carsideG, carsideB,
+  x12, y12, 0, 1.0,     carsideR, carsideG, carsideB,
+  x13, y13, -1, 1.0,     carsideR, carsideG, carsideB,
+  
+
+
+]);
 
 
 
@@ -264,29 +469,13 @@ function draw(gl, n, currentAngle, u_ModelMatrix) {
   g_modelMatrix.setRotate(0,0,0)
 
   var dist = Math.sqrt(g_xMdragTot*g_xMdragTot + g_yMdragTot*g_yMdragTot);
-  g_modelMatrix.rotate(dist*120.0, -g_yMdragTot+0.0001, g_xMdragTot+0.0001, 0.0);
+  g_modelMatrix.rotate(-dist*120.0, -g_yMdragTot+0.0001, g_xMdragTot+0.0001, 0.0);
   
 
-//  g_modelMatrix.rotate(currentAngle,0,0,1)
-
-  g_modelMatrix.translate(0,1,0)
-  g_modelMatrix.rotate(90,0,0,1)
-  g_modelMatrix.rotate(90,0,1,0)
-  g_modelMatrix.translate(0.0,0.0,-1.0)
-  //modelMatrix.rotate(-90,0,0,1)
-
+  //  g_modelMatrix.rotate(currentAngle,0,0,1)
+  g_modelMatrix.scale(0.3,0.3,0.3)
   gl.uniformMatrix4fv(u_ModelMatrix, false, g_modelMatrix.elements);
   gl.drawArrays(gl.TRIANGLES, 0, n);
-  
-  var angle = 20
-  for(i = 0; i < 360; i+= angle){
-    g_modelMatrix.rotate(angle,0,0,1)
-
-    gl.uniformMatrix4fv(u_ModelMatrix, false, g_modelMatrix.elements);
-    gl.drawArrays(gl.TRIANGLES, 0, n);
-  }
-
- 
   
 }
 
