@@ -2,7 +2,7 @@
  * Initial version copyed from NormalRobotArm20.js
  */
 var VSHADER_SOURCE =
-  'attribute vec4 a_Position;\n' +
+'attribute vec4 a_Position;\n' +
   'uniform mat4 u_ModelMatrix;\n' +
   'attribute vec4 a_Color;\n' +
   'varying vec4 v_Color;\n' +
@@ -55,6 +55,20 @@ var g_yMdragTot=0.0;
 var g_digits=5;			// DIAGNOSTICS: # of digits to print in console.log (
 									//    console.log('xVal:', xVal.toFixed(g_digits)); // print 5 digits
 
+var wheel_vertecies = [];
+var car_vertecies = [];
+
+var g_u_ModelMatrix;
+
+var g_steerKey = "";
+
+var g_steer_max_angle = 40;
+var g_steer_rate = 40;
+var g_steer_angle = 0;
+
+var g_wheelspeed_max_rate = 1000;
+var g_wheelspeed_rate = 100;
+var g_wheel_angle = 0;
 
 function main() {
 //==============================================================================
@@ -63,7 +77,7 @@ function main() {
   g_canvas.height = Math.min(window.innerWidth,window.innerHeight)
 
   // Get the rendering context for WebGL
-  var gl = getWebGLContext(g_canvas);
+  gl = getWebGLContext(g_canvas);
   if (!gl) {
     console.log('Failed to get the rendering context for WebGL');
     return;
@@ -89,17 +103,22 @@ function main() {
   window.addEventListener("mousemove", myMouseMove); 
 	window.addEventListener("mouseup", myMouseUp);	
 
+  //KEY:
+  window.addEventListener("keydown", myKeyDown, false);
+	window.addEventListener("keyup", myKeyUp, false);
+
   // Specify the color for clearing <canvas>
   gl.clearColor(0, 0, 0, 0);
 
   // NEW!! Enable 3D depth-test when drawing: don't over-draw at any pixel 
 	// unless the new Z value is closer to the eye than the old one..
 	gl.depthFunc(gl.LESS);
-	gl.enable(gl.DEPTH_TEST); 	  
+	gl.enable(gl.DEPTH_TEST); 
+  gl.enable(gl.CULL_FACE)	  
 
   // Get storage location of u_ModelMatrix
-  var u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
-  if (!u_ModelMatrix) { 
+  g_u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
+  if (!g_u_ModelMatrix) { 
     console.log('Failed to get the storage location of u_ModelMatrix');
     return;
   }
@@ -109,306 +128,20 @@ function main() {
   // Start drawing
   var tick = function() {
     currentAngle = animate(currentAngle);  // Update the rotation angle
-    draw(gl, n, currentAngle, u_ModelMatrix);   // Draw the triangle
+    draw(gl, n, currentAngle);   // Draw the triangle
     requestAnimationFrame(tick, g_canvas);   // Request that the browser ?calls tick
   };
   tick();
 }
 
-function ballMesh(depth, segments) {
-  var colorShape = new Float32Array(segments*14)
-  var theta = 0
-  var phi = 0
-  var x = Math.cos(theta)*Math.cos(phi)
-  var y = Math.cos(theta)*Math.sin(phi)
-  var z = Math.sin(theta)
-
-  colorShape[ 0] = x
-  colorShape[ 1] = y
-  colorShape[ 2] = z
-  colorShape[ 3] = 1.0
-  colorShape[ 4] = 1.0
-  colorShape[ 5] = 0.0
-  colorShape[ 6] = 0.0
-
-  for(i =  7.0; i<segments*14; i+=14){
-    var theta = i/(segments*14) * Math.PI/2.0
-    var phi = 0
-    var x = Math.cos(theta)*Math.cos(phi)
-    var y = Math.cos(theta)*Math.sin(phi)
-    var z = Math.sin(theta)
-
-    colorShape[i+ 0] = x
-    colorShape[i+ 1] = y
-    colorShape[i+ 2] = z
-    colorShape[i+ 3] = 1.0
-    colorShape[i+ 4] = 1.0
-    colorShape[i+ 5] = 0.0
-    colorShape[i+ 6] = 0.0
-
-    var phi = Math.PI/20
-    var x = Math.cos(theta)*Math.cos(phi)
-    var y = Math.cos(theta)*Math.sin(phi)
-    var z = Math.sin(theta)
-
-    colorShape[i+ 7] = x
-    colorShape[i+ 8] = y
-    colorShape[i+ 9] = z
-    colorShape[i+ 10] = 1.0
-    colorShape[i+ 11] = 0.0
-    colorShape[i+ 12] = 1.0
-    colorShape[i+ 13] = 0.0
-  }
-
-  return colorShape
-
-}
-
 function initVertexBuffers(gl) {
 //==============================================================================
-//Car points
-var x1 = -0.95, y1 = 0
-var x2 = -1.0, y2 = 0.15
-var x3 = -0.9, y3 = 0.2
-var x4 = -0.94, y4 = 0.35
-var x5 = -0.78, y5 = 0.41
-var x6 = -0.3, y6 = 0.4
-var x7 = 0.98, y7 = 0.4
-var x8 = 1.0, y8 = 0.2
-var x9 = 0.9, y9 = 0.1
-var x10 = 0.7, y10 = 0
 
 
-var x11 = 0, y11 = 0.4
-var x12 = 0.55, y12 = 0.4
-var x13 = 0.15, y13 = 0.58
-var x14 = -0.11, y14 = 0.6
-
-
-var carsideR = 0, carsideG = 0, carsideB = 0.8
-var carhullR = 0, carhullG = 0, carhullB = 0.5
-
-var carroofR = 0, carroofG = 0, carroofB = 0.5
-
-var colorShape =  new Float32Array ([
-  //CAR BODY -- inspiration from https://www.3dcadbrowser.com/3d-model/ford-mustang-1966, but i only looked at the 3d view, not at any mesh / node list
-  //=========================
-
-  //FRONT SIDE
-  x2, y2, 0, 1.0,     carsideR, carsideG, carsideB,
-  x3, y3, 0, 1.0,     carsideR, carsideG, carsideB,
-  x1, y1, 0, 1.0,     carsideR, carsideG, carsideB,
-
-  x4, y4, 0, 1.0,     carsideR, carsideG, carsideB,
-  x5, y5, 0, 1.0,     carsideR, carsideG, carsideB,
-  x3, y3, 0, 1.0,     carsideR, carsideG, carsideB,
-
-  x1, y1, 0, 1.0,     carsideR, carsideG, carsideB,
-  x6, y6, 0, 1.0,     carsideR, carsideG, carsideB,
-  x3, y3, 0, 1.0,     carsideR, carsideG, carsideB,
-
-  x5, y5, 0, 1.0,     carsideR, carsideG, carsideB,
-  x6, y6, 0, 1.0,     carsideR, carsideG, carsideB,
-  x3, y3, 0, 1.0,     carsideR, carsideG, carsideB,
-  
-  x1, y1, 0, 1.0,     carsideR, carsideG, carsideB,
-  x6, y6, 0, 1.0,     carsideR, carsideG, carsideB,
-  x7, y7, 0, 1.0,     carsideR, carsideG, carsideB,
-
-  x1, y1, 0, 1.0,     carsideR, carsideG, carsideB,
-  x10, y10, 0, 1.0,   carsideR, carsideG, carsideB,
-  x7, y7, 0, 1.0,     carsideR, carsideG, carsideB,
-
-  x10, y10, 0, 1.0,     carsideR, carsideG, carsideB,
-  x9, y9, 0, 1.0,     carsideR, carsideG, carsideB,
-  x7, y7, 0, 1.0,     carsideR, carsideG, carsideB,
-
-  x8, y8, 0, 1.0,     carsideR, carsideG, carsideB,
-  x9, y9, 0, 1.0,     carsideR, carsideG, carsideB,
-  x7, y7, 0, 1.0,     carsideR, carsideG, carsideB,
-
-
-  //FRONT SIDE
-  x2, y2, -1, 1.0,     carsideR, carsideG, carsideB,
-  x3, y3, -1, 1.0,     carsideR, carsideG, carsideB,
-  x1, y1, -1, 1.0,     carsideR, carsideG, carsideB,
-
-  x4, y4, -1, 1.0,     carsideR, carsideG, carsideB,
-  x5, y5, -1, 1.0,     carsideR, carsideG, carsideB,
-  x3, y3, -1, 1.0,     carsideR, carsideG, carsideB,
-
-  x1, y1, -1, 1.0,     carsideR, carsideG, carsideB,
-  x6, y6, -1, 1.0,     carsideR, carsideG, carsideB,
-  x3, y3, -1, 1.0,     carsideR, carsideG, carsideB,
-
-  x5, y5, -1, 1.0,     carsideR, carsideG, carsideB,
-  x6, y6, -1, 1.0,     carsideR, carsideG, carsideB,
-  x3, y3, -1, 1.0,     carsideR, carsideG, carsideB,
-  
-  x1, y1, -1, 1.0,     carsideR, carsideG, carsideB,
-  x6, y6, -1, 1.0,     carsideR, carsideG, carsideB,
-  x7, y7, -1, 1.0,     carsideR, carsideG, carsideB,
-
-  x1, y1, -1, 1.0,     carsideR, carsideG, carsideB,
-  x10, y10, -1, 1.0,   carsideR, carsideG, carsideB,
-  x7, y7, -1, 1.0,     carsideR, carsideG, carsideB,
-
-  x10, y10, -1, 1.0,     carsideR, carsideG, carsideB,
-  x9, y9, -1, 1.0,     carsideR, carsideG, carsideB,
-  x7, y7, -1, 1.0,     carsideR, carsideG, carsideB,
-
-  x8, y8, -1, 1.0,     carsideR, carsideG, carsideB,
-  x9, y9, -1, 1.0,     carsideR, carsideG, carsideB,
-  x7, y7, -1, 1.0,     carsideR, carsideG, carsideB,
-  
-
-  //CAR BELOW
-  x1, y1, 0, 1.0,     carhullR, carhullG, carhullB,
-  x1, y1, -1, 1.0,     carhullR, carhullG, carhullB,
-  x10, y10, 0, 1.0,     carhullR, carhullG, carhullB,
-  x10, y10, 0, 1.0,     carhullR, carhullG, carhullB,
-  x10, y10, -1, 1.0,     carhullR, carhullG, carhullB,
-  x1, y1, -1, 1.0,     carhullR, carhullG, carhullB,
-
-  //CAR REAR
-  x10, y10, 0, 1.0,     carhullR, carhullG, carhullB,
-  x9, y9, 0, 1.0,     carhullR, carhullG, carhullB,
-  x10, y10, -1, 1.0,     carhullR, carhullG, carhullB,
-  x10, y10, -1, 1.0,     carhullR, carhullG, carhullB,
-  x9, y9, -1, 1.0,     carhullR, carhullG, carhullB,
-  x9, y9, 0, 1.0,     carhullR, carhullG, carhullB,
-
-  x8, y8, 0, 1.0,     carhullR, carhullG, carhullB,
-  x9, y9, 0, 1.0,     carhullR, carhullG, carhullB,
-  x8, y8, -1, 1.0,     carhullR, carhullG, carhullB,
-  x8, y8, -1, 1.0,     carhullR, carhullG, carhullB,
-  x9, y9, -1, 1.0,     carhullR, carhullG, carhullB,
-  x9, y9, 0, 1.0,     carhullR, carhullG, carhullB,
-
-  x8, y8, 0, 1.0,     1.0, 0, 0,
-  x7, y7, 0, 1.0,     1.0, 0, 0,
-  x8, y8, -1, 1.0,      1.0, 0, 0,
-  x8, y8, -1, 1.0,      1.0, 0, 0,
-  x7, y7, -1, 1.0,      1.0, 0, 0,
-  x7, y7, 0, 1.0,     1.0, 0, 0,
-
-  x8, y8, 0, 1.0,     1.0, 0.5, 0,
-  x8, y8+0.1, 0, 1.0,     1.0, 0.5, 0,
-  x8, y8, 0-0.1, 1.0,     1.0, 0.5, 0,
-
-  x8, y8, -1, 1.0,     1.0, 0.5, 0,
-  x8, y8+0.1, -1, 1.0,     1.0, 0.5, 0,
-  x8, y8, -1+0.1, 1.0,     1.0, 0.5, 0,
-  
-
-
-  //CAR TOP
-  x7, y7, 0, 1.0,     carhullR, carhullG, carhullB,
-  x6, y6, 0, 1.0,     carhullR, carhullG, carhullB,
-  x7, y7, -1, 1.0,     carhullR, carhullG, carhullB,
-  x7, y7, -1, 1.0,     carhullR, carhullG, carhullB,
-  x6, y6, -1, 1.0,     carhullR, carhullG, carhullB,
-  x6, y6, 0, 1.0,     carhullR, carhullG, carhullB,
-
-  x5, y5, 0, 1.0,     carhullR, carhullG, carhullB,
-  x6, y6, 0, 1.0,     carhullR, carhullG, carhullB,
-  x5, y5, -1, 1.0,     carhullR, carhullG, carhullB,
-  x5, y5, -1, 1.0,     carhullR, carhullG, carhullB,
-  x6, y6, -1, 1.0,     carhullR, carhullG, carhullB,
-  x6, y6, 0, 1.0,     carhullR, carhullG, carhullB,
-
-  //CAR FRONT
-  x5, y5, 0, 1.0,     carhullR, carhullG, carhullB,
-  x4, y4, 0, 1.0,     carhullR, carhullG, carhullB,
-  x5, y5, -1, 1.0,     carhullR, carhullG, carhullB,
-  x5, y5, -1, 1.0,     carhullR, carhullG, carhullB,
-  x4, y4, -1, 1.0,     carhullR, carhullG, carhullB,
-  x4, y4, 0, 1.0,     carhullR, carhullG, carhullB,
-
-  x3, y3, 0, 1.0,     1,1,1,
-  x4, y4, 0, 1.0,     1,1,1,
-  x3, y3, -1, 1.0,     1,1,1,
-  x3, y3, -1, 1.0,     1,1,1,
-  x4, y4, -1, 1.0,     1,1,1,
-  x4, y4, 0, 1.0,     1,1,1,
-
-  x3, y3, 0, 1.0,     carhullR, carhullG, carhullB,
-  x2, y2, 0, 1.0,     carhullR, carhullG, carhullB,
-  x3, y3, -1, 1.0,     carhullR, carhullG, carhullB,
-  x3, y3, -1, 1.0,     carhullR, carhullG, carhullB,
-  x2, y2, -1, 1.0,     carhullR, carhullG, carhullB,
-  x2, y2, 0, 1.0,     carhullR, carhullG, carhullB,
-  
-  x1, y1, 0, 1.0,     carhullR, carhullG, carhullB,
-  x2, y2, 0, 1.0,     carhullR, carhullG, carhullB,
-  x1, y1, -1, 1.0,     carhullR, carhullG, carhullB,
-  x1, y1, -1, 1.0,     carhullR, carhullG, carhullB,
-  x2, y2, -1, 1.0,     carhullR, carhullG, carhullB,
-  x2, y2, 0, 1.0,     carhullR, carhullG, carhullB,
-
-  x3, y3, 0, 1.0,     1.0, 0.5, 0,
-  x4, y3+0.1, 0, 1.0,     1.0, 0.5, 0,
-  x3, y3, 0-0.1, 1.0,     1.0, 0.5, 0,
-
-  x3, y3, -1, 1.0,     1.0, 0.5, 0,
-  x4, y3+0.1, -1, 1.0,     1.0, 0.5, 0,
-  x3, y3, -1+0.1, 1.0,     1.0, 0.5, 0,
-  
-
-  //ROOF FRONT SIDE
-  x6, y6, 0, 1.0,       0.8,0.0,0.8,
-  x11, y11, 0, 1.0,     0.6,0.4,0.8,
-  x14, y14, 0, 1.0,     0.8,0.8,0.2,
-
-  x13, y13, 0, 1.0,     0.8,0.8,0.8,
-  x11, y11, 0, 1.0,     0.6,0.4,0.8,
-  x14, y14, 0, 1.0,     0.8,0.8,0.2,
-
-  x13, y13, 0, 1.0,     0.8,0.8,0.8,
-  x11, y11, 0, 1.0,     0.6,0.4,0.8,
-  x12, y12, 0, 1.0,     0.8,0.8,0.8,
-
-  //ROOF BACK SIDE
-  x6, y6, -1, 1.0,       0.4,0.2,0.8,
-  x11, y11, -1, 1.0,     0.6,0.4,0.8,
-  x14, y14, -1, 1.0,     0.8,0.8,0.2,
-
-  x13, y13, -1, 1.0,     0.8,0.8,0.8,
-  x11, y11, -1, 1.0,     0.6,0.4,0.8,
-  x14, y14, -1, 1.0,     0.8,0.8,0.2,
-
-  x13, y13, -1, 1.0,     0.8,0.8,0.8,
-  x11, y11, -1, 1.0,     0.6,0.4,0.8,
-  x12, y12, -1, 1.0,     0.8,0.8,0.8,
-
-  //ROOF TOP
-  x6, y6, 0, 1.0,     0.8,0.0,0.8,
-  x6, y6, -1, 1.0,     0.4,0.2,0.8,
-  x14, y14, 0, 1.0,     0.8,0.8,0.2,
-  x14, y14, -1, 1.0,     0.8,0.8,0.2,
-  x14, y14, 0, 1.0,     0.8,0.8,0.2,
-  x6, y6, -1, 1.0,     0.4,0.2,0.8,
-
-  x13, y13, 0, 1.0,     carsideR, carsideG, carsideB,
-  x13, y13, -1, 1.0,     carsideR, carsideG, carsideB,
-  x14, y14, 0, 1.0,     carsideR, carsideG, carsideB,
-  x14, y14, -1, 1.0,     carsideR, carsideG, carsideB,
-  x14, y14, 0, 1.0,     carsideR, carsideG, carsideB,
-  x13, y13, -1, 1.0,     carsideR, carsideG, carsideB,
-
-  x13, y13, 0, 1.0,     carsideR, carsideG, carsideB,
-  x13, y13, -1, 1.0,     carsideR, carsideG, carsideB,
-  x12, y12, 0, 1.0,     carsideR, carsideG, carsideB,
-  x12, y12, -1, 1.0,     carsideR, carsideG, carsideB,
-  x12, y12, 0, 1.0,     carsideR, carsideG, carsideB,
-  x13, y13, -1, 1.0,     carsideR, carsideG, carsideB,
-  
-
-
-]);
-
-
-
+car_vertecies = get_car_vertecies()
+wheel_vertecies = get_wheel_vertecies(100, 100, 8)
+colorShape = new Float32Array(car_vertecies.length + wheel_vertecies.length)
+colorShape.set(car_vertecies.concat(wheel_vertecies))
 
   var n = colorShape.length/7;   // The number of vertices
 
@@ -455,7 +188,7 @@ var colorShape =  new Float32Array ([
   return n;
 }
 
-function draw(gl, n, currentAngle, u_ModelMatrix) {
+function draw(gl, n, currentAngle) {
 //==============================================================================
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -466,17 +199,82 @@ function draw(gl, n, currentAngle, u_ModelMatrix) {
   //modelMatrix.setTranslate(-0.4,-0.4, 0.0);  // 'set' means DISCARD old matrix,
   						// (drawing axes centered in CVV), and then make new
   						// drawing axes moved to the lower-left corner of CVV. 
-  g_modelMatrix.setRotate(0,0,0)
+  g_modelMatrix.setTranslate(0,0,0)
+  g_modelMatrix.scale(0.6,0.6,0.6)
 
   var dist = Math.sqrt(g_xMdragTot*g_xMdragTot + g_yMdragTot*g_yMdragTot);
   g_modelMatrix.rotate(-dist*120.0, -g_yMdragTot+0.0001, g_xMdragTot+0.0001, 0.0);
   
 
   //  g_modelMatrix.rotate(currentAngle,0,0,1)
-  g_modelMatrix.scale(0.3,0.3,0.3)
-  gl.uniformMatrix4fv(u_ModelMatrix, false, g_modelMatrix.elements);
-  gl.drawArrays(gl.TRIANGLES, 0, n);
+  //g_modelMatrix.scale(0.6,0.6,-0.6)
+  drawCar(g_wheel_angle, g_steer_angle)
   
+}
+
+function drawCar(wheel_rot_angle, wheel_steer_angle) {
+  pushMatrix(g_modelMatrix)
+
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLES, 0, car_vertecies.length/7);
+
+  //console.log(wheel_steer_angle)
+  //TYRE FL
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.translate(-0.65,0,-0.1)
+  g_modelMatrix.rotate(wheel_steer_angle,0,1,0)
+  g_modelMatrix.rotate(wheel_rot_angle,0,0,1)
+  s_factor = 0.17
+  g_modelMatrix.scale(s_factor,s_factor,s_factor)
+
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_STRIP, car_vertecies.length/7, wheel_vertecies.length/7);
+  
+  g_modelMatrix = popMatrix()
+
+
+  //TYRE FR
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.translate(-0.65,0,1.1)
+  g_modelMatrix.rotate(wheel_steer_angle,0,1,0)
+  g_modelMatrix.rotate(180,0,1,0)
+  g_modelMatrix.rotate(-wheel_rot_angle,0,0,1)
+  s_factor = 0.17
+  g_modelMatrix.scale(s_factor,s_factor,s_factor)
+
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_STRIP, car_vertecies.length/7, wheel_vertecies.length/7);
+  
+  g_modelMatrix = popMatrix()
+
+
+  //TYRE BL
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.translate(0.6,0,-0.1)
+  g_modelMatrix.rotate(wheel_rot_angle,0,0,1)
+  s_factor = 0.18
+  g_modelMatrix.scale(s_factor,s_factor,s_factor)
+
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_STRIP, car_vertecies.length/7, wheel_vertecies.length/7);
+  
+  g_modelMatrix = popMatrix()
+
+  //TYRE BR
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.translate(0.6,0,1.1)
+  g_modelMatrix.rotate(180,0,1,0)
+  g_modelMatrix.rotate(-wheel_rot_angle,0,0,1)
+  s_factor = 0.18
+  g_modelMatrix.scale(s_factor,s_factor,s_factor)
+
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_STRIP, car_vertecies.length/7, wheel_vertecies.length/7);
+  
+  g_modelMatrix = popMatrix()
+
+
+  g_modelMatrix = popMatrix()
 }
 
 // Last time that this function was called:  (used for animation timing)
@@ -488,6 +286,46 @@ function animate(angle) {
   var now = Date.now();
   var elapsed = now - g_last;
   g_last = now;
+
+  //steer
+
+
+  switch (g_steerKey) {
+    case "left":
+      if(g_steer_angle > -g_steer_max_angle ){
+        g_steer_angle -= (g_steer_rate*elapsed)/1000.0
+      }
+      
+      break;
+    case "right":
+      if(g_steer_angle < g_steer_max_angle ){
+        g_steer_angle += (g_steer_rate*elapsed)/1000.0
+      }
+      
+      break;
+    case "fwd":
+      if(g_wheelspeed_rate < g_wheelspeed_max_rate ){
+        g_wheelspeed_rate += (g_wheelspeed_rate*elapsed)/1000.0
+      }
+      break;
+    case "bwd":
+      if(g_wheelspeed_rate > -g_wheelspeed_max_rate ){
+        g_wheelspeed_rate -= (g_wheelspeed_rate*elapsed)/1000.0
+      }     
+      break;
+    default:
+      steer = (g_steer_rate*elapsed)/1000.0
+      if(g_steer_angle > steer){
+        g_steer_angle -= steer
+      }else if(g_steer_angle < -steer){
+        g_steer_angle += steer
+      }
+      break;
+  }
+
+  g_wheel_angle += (g_wheelspeed_rate*elapsed)/1000.0
+  g_wheel_angle %= 360
+
   
   // Update the current rotation angle (adjusted by the elapsed time)
   //  limit the angle to move smoothly between +20 and -85 degrees:
@@ -571,3 +409,29 @@ function myMouseUp(ev) {
   g_xMdragTot += (x - g_xMclik);
   g_yMdragTot += (y - g_yMclik);
 };
+
+function myKeyDown(kev) {
+   
+  switch(kev.code) {
+
+    //----------------Arrow keys------------------------
+    case "ArrowLeft": 	
+      g_steerKey = "left"
+      break;
+    case "ArrowRight":
+      g_steerKey = "right"
+      break;
+    case "ArrowUp":		
+      g_steerKey = "fwd"
+      break;
+    case "ArrowDown":
+      g_steerKey = "bwd"
+      break;	
+    default:
+      break;
+  }
+}
+  
+  function myKeyUp(kev) {
+    g_steerKey = ""
+  }
