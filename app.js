@@ -44,7 +44,7 @@ var g_lastMS = Date.now();    			// Timestamp for most-recently-drawn image;
                                     // (now called 'timerAll()' ) to find time
                                     // elapsed since last on-screen image.
 var g_angle01 = 0;                  // initial rotation angle
-var g_angle01Rate = 45.0;           // rotation speed, in degrees/second 
+var g_frog_rate = 45.0;           // rotation speed, in degrees/second 
 
 //------------For mouse click-and-drag: -------------------------------
 var g_isDrag=false;		// mouse-drag: true when user holds down mouse button
@@ -69,6 +69,17 @@ var g_steer_angle = 0;
 var g_wheelspeed_max_rate = 1000;
 var g_wheelspeed_rate = 100;
 var g_wheel_angle = 0;
+
+var g_frog_leg_angle_front = 0;
+var g_frog_leg_angle_back = 0;
+var g_frog_height = 0;
+var g_frog_pos = 0;
+
+var frog_body_vertecies = []
+var frog_leg_vertecies = []
+var frog_eye_vertecies = []
+
+var g_zoom = 0.4
 
 function main() {
 //==============================================================================
@@ -114,7 +125,7 @@ function main() {
 	// unless the new Z value is closer to the eye than the old one..
 	gl.depthFunc(gl.LESS);
 	gl.enable(gl.DEPTH_TEST); 
-  gl.enable(gl.CULL_FACE)	  
+  //gl.enable(gl.CULL_FACE)	  
 
   // Get storage location of u_ModelMatrix
   g_u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
@@ -122,13 +133,12 @@ function main() {
     console.log('Failed to get the storage location of u_ModelMatrix');
     return;
   }
-  // Current rotation angle
-  var currentAngle = 0.0;
+
 
   // Start drawing
   var tick = function() {
-    currentAngle = animate(currentAngle);  // Update the rotation angle
-    draw(gl, n, currentAngle);   // Draw the triangle
+    animate();  // Update the rotation angle
+    draw(gl);   // Draw the triangle
     requestAnimationFrame(tick, g_canvas);   // Request that the browser ?calls tick
   };
   tick();
@@ -140,8 +150,19 @@ function initVertexBuffers(gl) {
 
 car_vertecies = get_car_vertecies()
 wheel_vertecies = get_wheel_vertecies(100, 100, 8)
-colorShape = new Float32Array(car_vertecies.length + wheel_vertecies.length)
-colorShape.set(car_vertecies.concat(wheel_vertecies))
+frog_body_vertecies = get_frog_body_vertecies()
+frog_leg_vertecies = get_frog_leg_vertecies()
+frog_eye_vertecies = get_frog_eye_vertecies(0.7)
+colorShape = new Float32Array(car_vertecies.length 
+  + wheel_vertecies.length
+  + frog_body_vertecies.length
+  + frog_leg_vertecies.length
+  + frog_eye_vertecies.length)
+colorShape.set(car_vertecies
+  .concat(wheel_vertecies)
+  .concat(frog_body_vertecies)
+  .concat(frog_leg_vertecies)
+  .concat(frog_eye_vertecies))
 
   var n = colorShape.length/7;   // The number of vertices
 
@@ -188,7 +209,7 @@ colorShape.set(car_vertecies.concat(wheel_vertecies))
   return n;
 }
 
-function draw(gl, n, currentAngle) {
+function draw(gl) {
 //==============================================================================
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -200,7 +221,7 @@ function draw(gl, n, currentAngle) {
   						// (drawing axes centered in CVV), and then make new
   						// drawing axes moved to the lower-left corner of CVV. 
   g_modelMatrix.setTranslate(0,0,0)
-  g_modelMatrix.scale(0.6,0.6,0.6)
+  g_modelMatrix.scale(g_zoom,g_zoom,g_zoom)
 
   var dist = Math.sqrt(g_xMdragTot*g_xMdragTot + g_yMdragTot*g_yMdragTot);
   g_modelMatrix.rotate(-dist*120.0, -g_yMdragTot+0.0001, g_xMdragTot+0.0001, 0.0);
@@ -208,9 +229,190 @@ function draw(gl, n, currentAngle) {
 
   //  g_modelMatrix.rotate(currentAngle,0,0,1)
   //g_modelMatrix.scale(0.6,0.6,-0.6)
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.translate(0,-0.1,-0.5)
+  g_modelMatrix.scale(0.6,0.6,0.6)
   drawCar(g_wheel_angle, g_steer_angle)
+  g_modelMatrix = popMatrix(g_modelMatrix)
+
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.rotate(g_frog_pos,0,1,0)
+  g_modelMatrix.translate(1.4,0,0)
+  g_modelMatrix.rotate(90,0,1,0)
+  g_modelMatrix.scale(0.2,0.2,0.2)
+  g_modelMatrix.translate(0, g_frog_height, 0)
+  drawFrog(g_frog_leg_angle_front, g_frog_leg_angle_back)
+  g_modelMatrix = popMatrix(g_modelMatrix)
   
 }
+function drawFrog(front_angle, back_angle) {
+  pushMatrix(g_modelMatrix)
+
+
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_STRIP, car_vertecies.length/7 + wheel_vertecies.length/7, 18);
+  
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_FAN, car_vertecies.length/7 + wheel_vertecies.length/7 + 18  , 10);
+
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_FAN, car_vertecies.length/7 + wheel_vertecies.length/7 + 18 +10 , 10);
+
+  drawFrogLeg(front_angle, back_angle)
+  drawFrogEye()
+
+
+    
+
+
+}
+function drawOneLeg(leg_angle) {
+
+  //Leg right
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.translate(-0.7,-0.2,0)
+  g_modelMatrix.rotate(90,0,1,0)
+  g_modelMatrix.rotate(leg_angle-20,0,0,1)
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.scale(0.6,0.3,0.3)
+  g_modelMatrix.translate(-1 ,0,0)
+  drawLeg()
+  g_modelMatrix = popMatrix()
+
+
+  g_modelMatrix.translate(-1.2,0,0)
+  g_modelMatrix.rotate(90,0,0,1)
+  g_modelMatrix.rotate(-leg_angle+30,0,0,1)
+  pushMatrix(g_modelMatrix)  
+  g_modelMatrix.scale(0.6,0.2,0.2)
+  g_modelMatrix.translate(-1 ,0,0)
+  drawLeg()
+  g_modelMatrix = popMatrix()
+
+
+  g_modelMatrix.translate(-1.2,0,0)
+  g_modelMatrix.rotate(-90,0,0,1)
+  g_modelMatrix.rotate(-leg_angle*0.4,0,0,1)
+  pushMatrix(g_modelMatrix)  
+  g_modelMatrix.scale(0.4,0.2,0.2)
+  g_modelMatrix.translate(-1 ,0,0)
+  drawLeg()
+  g_modelMatrix = popMatrix()
+
+
+
+  g_modelMatrix = popMatrix()
+
+}
+function drawLeg() {
+  g_u_ModelMatrix
+gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+gl.drawArrays(gl.TRIANGLE_STRIP, 
+  car_vertecies.length/7 
+  + wheel_vertecies.length/7 
+  + frog_body_vertecies.length/7, 18);
+
+gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+gl.drawArrays(gl.TRIANGLE_FAN, 
+  car_vertecies.length/7 
+  + wheel_vertecies.length/7
+  + frog_body_vertecies.length/7
+  + 18  , 10);
+
+gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+gl.drawArrays(gl.TRIANGLE_FAN, 
+  car_vertecies.length/7 
+  + wheel_vertecies.length/7 
+  + frog_body_vertecies.length/7
+  + 18 +10 , 10);
+}
+function drawFrogLeg(front_angle,back_angle) {
+  pushMatrix(g_modelMatrix)
+
+  drawOneLeg(back_angle)
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.scale(1,1,-1)
+  drawOneLeg(back_angle)
+  g_modelMatrix = popMatrix()
+
+
+
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.translate(1,0,0)
+  drawOneLeg(front_angle)
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.scale(1,1,-1)
+  drawOneLeg(front_angle)
+  g_modelMatrix = popMatrix()
+
+  g_modelMatrix = popMatrix()
+
+
+
+
+  g_modelMatrix = popMatrix()
+
+}
+
+function drawEye() {
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 
+    car_vertecies.length/7 
+    + wheel_vertecies.length/7 
+    + frog_body_vertecies.length/7
+    + frog_leg_vertecies.length/7, 18);
+  
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_FAN, 
+    car_vertecies.length/7 
+    + wheel_vertecies.length/7
+    + frog_body_vertecies.length/7
+    + frog_leg_vertecies.length/7
+    + 18  , 10);
+
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_FAN, 
+    car_vertecies.length/7 
+    + wheel_vertecies.length/7 
+    + frog_body_vertecies.length/7
+    + frog_leg_vertecies.length/7
+    + 18 +10 , 10);
+
+  gl.uniformMatrix4fv(g_u_ModelMatrix, false, g_modelMatrix.elements);
+  gl.drawArrays(gl.TRIANGLE_FAN, 
+    car_vertecies.length/7 
+    + wheel_vertecies.length/7 
+    + frog_body_vertecies.length/7
+    + frog_leg_vertecies.length/7
+    + 18 +10 + 10 , 10);
+}
+
+function drawFrogEye(eyeAngle) {
+  eyeAngle = eyeAngle | 0
+
+
+  pushMatrix(g_modelMatrix)
+
+  
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.translate(0.65,0.7,0.13)
+  g_modelMatrix.rotate(10+eyeAngle,0,1,0)
+  g_modelMatrix.scale(0.2,0.2,0.2)
+  drawEye()
+  g_modelMatrix = popMatrix()
+
+  pushMatrix(g_modelMatrix)
+  g_modelMatrix.translate(0.65,0.7,-0.13)
+  g_modelMatrix.rotate(-10+eyeAngle,0,1,0)
+  g_modelMatrix.scale(0.2,0.2,0.2)
+  drawEye()
+  g_modelMatrix = popMatrix()
+
+  g_modelMatrix = popMatrix()
+  
+}
+
+
 
 function drawCar(wheel_rot_angle, wheel_steer_angle) {
   pushMatrix(g_modelMatrix)
@@ -280,7 +482,7 @@ function drawCar(wheel_rot_angle, wheel_steer_angle) {
 // Last time that this function was called:  (used for animation timing)
 var g_last = Date.now();
 
-function animate(angle) {
+function animate() {
 //==============================================================================
   // Calculate the elapsed time
   var now = Date.now();
@@ -288,8 +490,6 @@ function animate(angle) {
   g_last = now;
 
   //steer
-
-
   switch (g_steerKey) {
     case "left":
       if(g_steer_angle > -g_steer_max_angle ){
@@ -326,25 +526,35 @@ function animate(angle) {
   g_wheel_angle += (g_wheelspeed_rate*elapsed)/1000.0
   g_wheel_angle %= 360
 
+  //FROG
   
-  // Update the current rotation angle (adjusted by the elapsed time)
-  //  limit the angle to move smoothly between +20 and -85 degrees:
-  if(angle >  360.0 && g_angle01Rate > 0) g_angle01Rate = -g_angle01Rate;
-  if(angle <  0.0 && g_angle01Rate < 0) g_angle01Rate = -g_angle01Rate;
+
+  g_frog_pos += (g_frog_rate * elapsed) / 1000.0;
+  g_frog_pos %= 360
+
+  a = g_frog_pos/360.0 * Math.PI *10
+  g_frog_leg_angle_back = 10+20*Math.sin(a)
+  g_frog_leg_angle_front = 10+10*Math.sin(a)
+  g_frog_height = (10+20*Math.sin(a))*0.01
   
-  var newAngle = angle + (g_angle01Rate * elapsed) / 1000.0;
-  return newAngle %= 360;
 }
 
-function moreCCW() {
+function moreFrogSpeed() {
 //==============================================================================
 
-  g_angle01Rate += 10; 
+  g_frog_rate += 10; 
 }
 
-function lessCCW() {
+function lessFrogSpeed() {
 //==============================================================================
-  g_angle01Rate -= 10; 
+  g_frog_rate -= 10; 
+}
+
+function zoomIN() {
+  g_zoom += 0.1
+}
+function zoomOUT() {
+  g_zoom -= 0.1
 }
 
 //===================Mouse and Keyboard event-handling Callbacks
