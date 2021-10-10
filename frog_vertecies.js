@@ -15,10 +15,10 @@ function get_frog_body_vertecies() {
         x2 + h, y2, z2, 1,          torsoR,torsoG,torsoB, 
         x2 - h, y2, z2, 1,          torsoR,torsoG,torsoB, 
         x3 + h, y3, z3, 1,          torsoR,torsoG,torsoB, 
-        x3 - h, y3, z3, 1,          torsoR,torsoG,torsoB,
+        x3 - h, y3, z3, 1,          .2,.2,.8, 
 
         x3 + h, y3, -z3, 1,          torsoR,torsoG,torsoB, 
-        x3 - h, y3, -z3, 1,          torsoR,torsoG,torsoB, 
+        x3 - h, y3, -z3, 1,          .2,.2,.8, 
         x2 + h, y2, -z2, 1,          torsoR,torsoG,torsoB, 
         x2 - h, y2, -z2, 1,          torsoR,torsoG,torsoB, 
         
@@ -43,8 +43,8 @@ function get_frog_body_vertecies() {
         x3 - h, -y3, -z3, 1,            torsoR,torsoG,torsoB, 
         x2 - h, -y2, -z2, 1,            torsoR,torsoG,torsoB, 
         x2 - h, y2, -z2, 1,             torsoR,torsoG,torsoB, 
-        x3 - h, y3, -z3, 1,             torsoR,torsoG,torsoB, 
-        x3 - h, y3, z3, 1,              torsoR,torsoG,torsoB,
+        x3 - h, y3, -z3, 1,             .2,.2,.8,
+        x3 - h, y3, z3, 1,              .2,.2,.8,
         x2 - h, y2, z2, 1,              torsoR,torsoG,torsoB, 
 
 

@@ -81,6 +81,8 @@ var frog_eye_vertecies = []
 
 var g_zoom = 0.4
 
+var g_angle_slider = 20;
+
 function main() {
 //==============================================================================
   // Retrieve <canvas> element
@@ -533,8 +535,8 @@ function animate() {
   g_frog_pos %= 360
 
   a = g_frog_pos/360.0 * Math.PI *10
-  g_frog_leg_angle_back = 10+20*Math.sin(a)
-  g_frog_leg_angle_front = 10+10*Math.sin(a)
+  g_frog_leg_angle_back = 10+g_angle_slider*Math.sin(a)
+  g_frog_leg_angle_front = 10+g_angle_slider*0.5*Math.sin(a)
   g_frog_height = (10+20*Math.sin(a))*0.01
   
 }
@@ -549,6 +551,12 @@ function lessFrogSpeed() {
 //==============================================================================
   g_frog_rate -= 10; 
 }
+
+
+function frogFlexAngle(angle) {
+  g_angle_slider = angle
+}
+
 
 function zoomIN() {
   g_zoom += 0.1
