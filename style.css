@@ -42,3 +42,9 @@ body {
     background: #09aaa2;
     cursor: pointer;
   }
+
+  .divider {
+    margin: 5px;
+    border: 2px solid #09aaa2;
+    border-radius: 5px;
+  }
